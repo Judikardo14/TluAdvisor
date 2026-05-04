@@ -45,17 +45,9 @@ MAX_HISTORY = 20
 
 # ── Build Telegram app (sans initialize au démarrage) ─────────────────────────
 telegram_app = Application.builder().token(BOT_TOKEN).build()
-_initialized = False
 
 # FastAPI app must be defined before route decorators
 app = FastAPI()
-
-async def ensure_initialized():
-    global _initialized
-    if not _initialized:
-        await telegram_app.initialize()
-        await telegram_app.start()
-        _initialized = True
 
 @app.get("/setup")
 async def setup_webhook():
@@ -167,7 +159,6 @@ telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_
 @app.post("/webhook")
 async def webhook(request: Request):
     try:
-        await ensure_initialized()
         data = await request.json()
         update = Update.de_json(data, telegram_app.bot)
         await telegram_app.process_update(update)
@@ -183,7 +174,6 @@ async def webhook(request: Request):
 async def test_message():
     """Endpoint de test pour simuler un message /start"""
     try:
-        await ensure_initialized()
         # Simuler un message /start
         from telegram import User, Chat, Message
         test_user = User(id=999, is_bot=False, first_name="Test")
