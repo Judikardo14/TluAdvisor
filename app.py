@@ -2,6 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 import os
+import httpx
 from fastapi import FastAPI, Request
 from telegram import Update
 from telegram.ext import (
@@ -58,11 +59,19 @@ async def ensure_initialized():
 
 @app.get("/setup")
 async def setup_webhook():
-    """Enregistre manuellement le webhook auprès de Telegram via navigateur/curl"""
-    await ensure_initialized()
+    """Enregistre manuellement le webhook auprès de Telegram (appel direct API)"""
     try:
-        result = await telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-        return {"status": "✅ Webhook enregistré", "url": f"{WEBHOOK_URL}/webhook", "result": result}
+        async with httpx.AsyncClient() as client:
+            webhook_url = f"{WEBHOOK_URL}/webhook"
+            response = await client.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
+                data={"url": webhook_url}
+            )
+            result = response.json()
+            if result.get("ok"):
+                return {"status": "✅ Webhook enregistré", "url": webhook_url, "result": result}
+            else:
+                return {"status": "❌ Erreur Telegram", "error": result.get("description", "Unknown error")}
     except Exception as e:
         return {"status": "❌ Erreur", "error": str(e)}
 
