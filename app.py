@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 import os
 import httpx
+import asyncio
 from fastapi import FastAPI, Request
 from telegram import Update
 from telegram.ext import (
@@ -48,6 +49,21 @@ telegram_app = Application.builder().token(BOT_TOKEN).build()
 
 # FastAPI app must be defined before route decorators
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup():
+    """Initialiser le bot au démarrage (timeout court pour éviter le freeze)"""
+    try:
+        # Essayer d'initializer le bot avec un timeout court
+        import asyncio
+        await asyncio.wait_for(telegram_app.initialize(), timeout=2.0)
+    except asyncio.TimeoutError:
+        print("Bot initialize timed out (HF Spaces network limit), continuing anyway...")
+    except Exception as e:
+        print(f"Bot initialize error: {e}, continuing anyway...")
+    
+    # Mark as initialized anyway so process_update works
+    telegram_app._initialized = True
 
 @app.get("/setup")
 async def setup_webhook():
