@@ -1,7 +1,9 @@
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from telegram import Update, Bot
+import os
+from fastapi import FastAPI, Request
+from telegram import Update
 from telegram.ext import (
     Application, MessageHandler, CommandHandler,
     filters, ContextTypes,
@@ -42,10 +44,26 @@ MAX_HISTORY = 20
 
 # ── Build Telegram app (sans initialize au démarrage) ─────────────────────────
 telegram_app = Application.builder().token(BOT_TOKEN).build()
+_initialized = False
 
+async def ensure_initialized():
+    global _initialized
+    if not _initialized:
+        await telegram_app.initialize()
+        await telegram_app.start()
+        _initialized = True
 
-# ── Handlers Telegram ──────────────────────────────────────────────────────────
+@app.get("/setup")
+async def setup_webhook():
+    """Enregistre manuellement le webhook auprès de Telegram via navigateur/curl"""
+    await ensure_initialized()
+    try:
+        result = await telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+        return {"status": "✅ Webhook enregistré", "url": f"{WEBHOOK_URL}/webhook", "result": result}
+    except Exception as e:
+        return {"status": "❌ Erreur", "error": str(e)}
 
+# ── Handlers ──────────────────────────────────────────────────────────────────
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     conversation_history[chat_id] = []
@@ -58,12 +76,14 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
+
 async def cmd_newmatch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conversation_history[update.effective_chat.id] = []
     await update.message.reply_text(
         "🔄 *Nouveau match démarré.* Historique effacé.\nPrêt pour les réclamations.",
         parse_mode="Markdown"
     )
+
 
 async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -85,6 +105,7 @@ async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
+
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🆘 *Aide — Jury Génie en Herbe*\n\n"
@@ -99,6 +120,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "— _Rédige une réclamation officielle pour..._",
         parse_mode="Markdown"
     )
+
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -120,6 +142,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conversation_history[chat_id].append({"role": "assistant", "content": reply})
     await update.message.reply_text(reply)
 
+
 telegram_app.add_handler(CommandHandler("start", cmd_start))
 telegram_app.add_handler(CommandHandler("newmatch", cmd_newmatch))
 telegram_app.add_handler(CommandHandler("resume", cmd_resume))
@@ -136,6 +159,7 @@ async def webhook(request: Request):
     update = Update.de_json(data, telegram_app.bot)
     await telegram_app.process_update(update)
     return {"ok": True}
+
 
 @app.get("/")
 def root():
