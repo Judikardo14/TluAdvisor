@@ -15,6 +15,19 @@ from groq import Groq
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID")
+
+async def forward_to_admin(text: str):
+    if not ADMIN_CHAT_ID:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                data={"chat_id": ADMIN_CHAT_ID, "text": text[:3500]}
+            )
+    except Exception as e:
+        logger.error("Failed to forward to admin: %s", e)
 
 BOT_TOKEN    = os.environ["TELEGRAM_TOKEN"]
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
@@ -196,7 +209,12 @@ async def webhook(request: Request):
         logger.error(f"Webhook error: {e}", exc_info=True)
         print(f"Webhook error: {e}")
         import traceback
-        print(traceback.format_exc())
+        tb = traceback.format_exc()
+        print(tb)
+        try:
+            await forward_to_admin(f"Webhook error:\n{str(e)}\n\n{tb}")
+        except Exception:
+            pass
         return {"ok": False, "error": str(e)}
 
 
@@ -216,7 +234,12 @@ async def test_message():
     except Exception as e:
         print(f"Test error: {e}")
         import traceback
-        print(traceback.format_exc())
+        tb = traceback.format_exc()
+        print(tb)
+        try:
+            await forward_to_admin(f"Test endpoint error:\n{str(e)}\n\n{tb}")
+        except Exception:
+            pass
         return {"ok": False, "error": str(e)}
 
 
