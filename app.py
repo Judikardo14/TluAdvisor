@@ -42,17 +42,10 @@ MAX_HISTORY = 20
 
 # ── Build Telegram app (sans initialize au démarrage) ─────────────────────────
 telegram_app = Application.builder().token(BOT_TOKEN).build()
-_initialized = False
 
-async def ensure_initialized():
-    global _initialized
-    if not _initialized:
-        await telegram_app.initialize()
-        await telegram_app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-        await telegram_app.start()
-        _initialized = True
 
-# ── Handlers ──────────────────────────────────────────────────────────────────
+# ── Handlers Telegram ──────────────────────────────────────────────────────────
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     conversation_history[chat_id] = []
