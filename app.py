@@ -69,18 +69,23 @@ app = FastAPI()
 
 @app.on_event("startup")
 async def startup():
-    """Initialiser le bot au démarrage (timeout court pour éviter le freeze)"""
+    """Initialiser le bot et enregistrer le webhook automatiquement"""
     try:
-        # Essayer d'initializer le bot avec un timeout court
-        import asyncio
-        await asyncio.wait_for(telegram_app.initialize(), timeout=2.0)
-    except asyncio.TimeoutError:
-        print("Bot initialize timed out (HF Spaces network limit), continuing anyway...")
+        # Initialiser uniquement le bot HTTP (plus fiable sur HF Spaces)
+        await telegram_app.bot.initialize()
+        telegram_app._initialized = True
+        logger.info("Bot HTTP initialized ✅")
     except Exception as e:
-        print(f"Bot initialize error: {e}, continuing anyway...")
-    
-    # Mark as initialized anyway so process_update works
-    telegram_app._initialized = True
+        logger.error(f"Bot initialize error: {e}")
+        telegram_app._initialized = True  # continuer quand même
+
+    # Enregistrer le webhook automatiquement à chaque démarrage
+    try:
+        webhook_url = f"{WEBHOOK_URL}/webhook"
+        await telegram_app.bot.set_webhook(url=webhook_url)
+        logger.info(f"Webhook enregistré automatiquement : {webhook_url} ✅")
+    except Exception as e:
+        logger.error(f"Échec enregistrement webhook : {e}")
 
 @app.get("/setup")
 async def setup_webhook():
