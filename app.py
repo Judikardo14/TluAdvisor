@@ -61,19 +61,22 @@ async def ensure_initialized():
 async def setup_webhook():
     """Enregistre manuellement le webhook auprès de Telegram (appel direct API)"""
     try:
-        async with httpx.AsyncClient() as client:
-            webhook_url = f"{WEBHOOK_URL}/webhook"
+        webhook_url = f"{WEBHOOK_URL}/webhook"
+        async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook",
                 data={"url": webhook_url}
             )
             result = response.json()
             if result.get("ok"):
-                return {"status": "✅ Webhook enregistré", "url": webhook_url, "result": result}
+                return {"status": "✅ Webhook enregistré", "url": webhook_url, "ok": True}
             else:
-                return {"status": "❌ Erreur Telegram", "error": result.get("description", "Unknown error")}
+                error_msg = result.get("description", str(result))
+                return {"status": "❌ Erreur Telegram", "error": error_msg, "ok": False}
     except Exception as e:
-        return {"status": "❌ Erreur", "error": str(e)}
+        import traceback
+        error_detail = traceback.format_exc()
+        return {"status": "❌ Erreur exception", "error": str(e), "detail": error_detail}
 
 # ── Handlers ──────────────────────────────────────────────────────────────────
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
