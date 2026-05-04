@@ -166,11 +166,38 @@ telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_
 
 @app.post("/webhook")
 async def webhook(request: Request):
-    await ensure_initialized()
-    data = await request.json()
-    update = Update.de_json(data, telegram_app.bot)
-    await telegram_app.process_update(update)
-    return {"ok": True}
+    try:
+        await ensure_initialized()
+        data = await request.json()
+        update = Update.de_json(data, telegram_app.bot)
+        await telegram_app.process_update(update)
+        return {"ok": True}
+    except Exception as e:
+        print(f"Webhook error: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/test")
+async def test_message():
+    """Endpoint de test pour simuler un message /start"""
+    try:
+        await ensure_initialized()
+        # Simuler un message /start
+        from telegram import User, Chat, Message
+        test_user = User(id=999, is_bot=False, first_name="Test")
+        test_chat = Chat(id=999, type="private")
+        test_msg = Message(message_id=1, date=None, chat=test_chat, from_user=test_user, text="/start")
+        test_update = Update(update_id=1, message=test_msg)
+        
+        await telegram_app.process_update(test_update)
+        return {"ok": True, "msg": "Test message processed"}
+    except Exception as e:
+        print(f"Test error: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return {"ok": False, "error": str(e)}
 
 
 @app.get("/")
