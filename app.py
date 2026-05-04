@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 import os
 import httpx
 import asyncio
+import logging
 from fastapi import FastAPI, Request
 from telegram import Update
 from telegram.ext import (
@@ -11,6 +12,9 @@ from telegram.ext import (
     filters, ContextTypes,
 )
 from groq import Groq
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 BOT_TOKEN    = os.environ["TELEGRAM_TOKEN"]
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
@@ -88,6 +92,7 @@ async def setup_webhook():
 
 # ── Handlers ──────────────────────────────────────────────────────────────────
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"[cmd_start] User {update.effective_chat.id}: {update.message.text if update.message else 'no message'}")
     chat_id = update.effective_chat.id
     conversation_history[chat_id] = []
     await update.message.reply_text(
@@ -101,6 +106,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_newmatch(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"[cmd_newmatch] User {update.effective_chat.id}")
     conversation_history[update.effective_chat.id] = []
     await update.message.reply_text(
         "🔄 *Nouveau match démarré.* Historique effacé.\nPrêt pour les réclamations.",
@@ -109,6 +115,7 @@ async def cmd_newmatch(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"[cmd_resume] User {update.effective_chat.id}")
     chat_id = update.effective_chat.id
     history = conversation_history.get(chat_id, [])
     if not history:
@@ -130,6 +137,7 @@ async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"[cmd_help] User {update.effective_chat.id}")
     await update.message.reply_text(
         "🆘 *Aide — Jury Génie en Herbe*\n\n"
         "Envoie ta question ou décris la situation litigieuse.\n\n"
@@ -146,6 +154,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"[handle_message] User {update.effective_chat.id}: {update.message.text if update.message else 'no text'}")
     chat_id = update.effective_chat.id
     user_text = update.message.text
     if chat_id not in conversation_history:
@@ -175,11 +184,16 @@ telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_
 @app.post("/webhook")
 async def webhook(request: Request):
     try:
+        logger.info("Webhook called")
         data = await request.json()
+        logger.info(f"Webhook data: {data}")
         update = Update.de_json(data, telegram_app.bot)
+        logger.info(f"Webhook update parsed: {update}")
         await telegram_app.process_update(update)
+        logger.info("Webhook processed successfully")
         return {"ok": True}
     except Exception as e:
+        logger.error(f"Webhook error: {e}", exc_info=True)
         print(f"Webhook error: {e}")
         import traceback
         print(traceback.format_exc())
