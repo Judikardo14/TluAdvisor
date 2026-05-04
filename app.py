@@ -243,6 +243,18 @@ async def test_message():
         return {"ok": False, "error": str(e)}
 
 
+@app.get("/admin_test")
+async def admin_test():
+    """Envoie un message test au chat admin (ADMIN_CHAT_ID) si configuré"""
+    if not ADMIN_CHAT_ID:
+        return {"ok": False, "error": "ADMIN_CHAT_ID not set in secrets"}
+    try:
+        await forward_to_admin("[TluAdvisor] Test message from Space")
+        return {"ok": True, "msg": "Test forwarded to admin"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 @app.get("/")
 def root():
     return {"status": "Jury Génie en Herbe — Bot actif ✅"}
