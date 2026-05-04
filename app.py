@@ -46,6 +46,9 @@ MAX_HISTORY = 20
 telegram_app = Application.builder().token(BOT_TOKEN).build()
 _initialized = False
 
+# FastAPI app must be defined before route decorators
+app = FastAPI()
+
 async def ensure_initialized():
     global _initialized
     if not _initialized:
@@ -148,9 +151,6 @@ telegram_app.add_handler(CommandHandler("newmatch", cmd_newmatch))
 telegram_app.add_handler(CommandHandler("resume", cmd_resume))
 telegram_app.add_handler(CommandHandler("help", cmd_help))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-# ── FastAPI ───────────────────────────────────────────────────────────────────
-app = FastAPI()
 
 @app.post("/webhook")
 async def webhook(request: Request):
